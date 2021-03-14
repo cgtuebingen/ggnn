@@ -13,8 +13,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 // Authors: Fabian Groh, Patrick Wieschollek, Hendrik P.A. Lensch
-#ifndef CUDA_KNN_K_BEST_LIST_CUH_
-#define CUDA_KNN_K_BEST_LIST_CUH_
+
+#ifndef INCLUDE_GGNN_UTILS_CUDA_KNN_K_BEST_LIST_CUH_
+#define INCLUDE_GGNN_UTILS_CUDA_KNN_K_BEST_LIST_CUH_
 
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -22,13 +23,14 @@ limitations under the License.
 #include <cub/cub.cuh>
 #include <limits>
 
-#include "ggnn/utils/cuda_knn_core_utils.cuh"
-
 /**
  * KBestList stores the K best elements in parallel.
  */
-template <typename ValueT, typename KeyT, int K>
+template <typename ValueT, typename KeyT, int K, int BLOCK_DIM_X>
 struct KBestList {
+  // this allows for loop unrolling
+  static constexpr int ITERATIONS_FOR_K = (K+BLOCK_DIM_X-1)/BLOCK_DIM_X;
+
   ValueT* dists;
   KeyT* ids;
 
@@ -42,9 +44,12 @@ struct KBestList {
   }
 
   __device__ __forceinline__ void init() {
-    if (threadIdx.x < K) {
-      dists[threadIdx.x] = std::numeric_limits<ValueT>::infinity();
-      ids[threadIdx.x] = EMPTY_KEY;
+    for (int i=0; i < ITERATIONS_FOR_K; ++i) {
+      const int k = i*BLOCK_DIM_X+threadIdx.x;
+      if (k < K) {
+        dists[k] = std::numeric_limits<ValueT>::infinity();
+        ids[k] = EMPTY_KEY;
+      }
     }
     __syncthreads();
   }
@@ -70,24 +75,32 @@ struct KBestList {
     __shared__ bool s_enter;
     if (!threadIdx.x) s_enter = true;
     __syncthreads();
-    ValueT r_dist;
-    KeyT r_id;
-    if (threadIdx.x < K) {
-      r_dist = dists[threadIdx.x];
-      r_id = ids[threadIdx.x];
-      if (r_id == id) s_enter = false;
+    ValueT r_dist[ITERATIONS_FOR_K];
+    KeyT r_id[ITERATIONS_FOR_K];
+    for (int i=0; i < ITERATIONS_FOR_K; ++i) {
+      const int k = i*BLOCK_DIM_X+threadIdx.x;
+      if (k < K) {
+        r_dist[i] = dists[threadIdx.x];
+        r_id[i] = ids[threadIdx.x];
+        if (r_id[i] == id) s_enter = false;
+      }
     }
     __syncthreads();
-    if (threadIdx.x < K && s_enter) {
-      if (r_dist > dist) {
-        if (threadIdx.x < (K - 1)) {
-          dists[threadIdx.x + 1] = r_dist;
-          ids[threadIdx.x + 1] = r_id;
-        }
+    if (!s_enter)
+      return;
+    for (int i=0; i < ITERATIONS_FOR_K; ++i) {
+      const int k = i*BLOCK_DIM_X+threadIdx.x;
+      if (k < K) {
+        if (r_dist[i] > dist) {
+          if (k < (K - 1)) {
+            dists[k + 1] = r_dist[i];
+            ids[k + 1] = r_id[i];
+          }
 
-        if (!threadIdx.x || dists[threadIdx.x - 1] <= dist) {
-          dists[threadIdx.x] = dist;
-          ids[threadIdx.x] = id;
+          if (!k || dists[k - 1] <= dist) {
+            dists[k] = dist;
+            ids[k] = id;
+          }
         }
       }
     }
@@ -107,25 +120,33 @@ struct KBestList {
     __shared__ bool s_enter;
     if (!threadIdx.x) s_enter = true;
     __syncthreads();
-    ValueT r_dist;
-    KeyT r_id;
-    if (threadIdx.x < K) {
-      r_dist = dists[threadIdx.x];
-      r_id = ids[threadIdx.x];
-      if (r_id == id) s_enter = false;
+    ValueT r_dist[ITERATIONS_FOR_K];
+    KeyT r_id[ITERATIONS_FOR_K];
+    for (int i=0; i < ITERATIONS_FOR_K; ++i) {
+      const int k = i*BLOCK_DIM_X+threadIdx.x;
+      if (k < K) {
+        r_dist[i] = dists[threadIdx.x];
+        r_id[i] = ids[threadIdx.x];
+        if (r_id[i] == id) s_enter = false;
+      }
     }
     __syncthreads();
-    if (threadIdx.x < K && s_enter) {
-      if (r_dist >= dist) {
-        if (threadIdx.x < (K - 1)) {
-          dists[threadIdx.x + 1] = r_dist;
-          ids[threadIdx.x + 1] = r_id;
-        }
+    if (!s_enter)
+      return;
 
-        if (!threadIdx.x || dists[threadIdx.x - 1] < dist) {
-          //          printf("enter: %f %d -> %d \n", dist, id, threadIdx.x);
-          dists[threadIdx.x] = dist;
-          ids[threadIdx.x] = id;
+    for (int i=0; i < ITERATIONS_FOR_K; ++i) {
+      const int k = i*BLOCK_DIM_X+threadIdx.x;
+      if (k < K) {
+        if (r_dist[i] >= dist) {
+          if (k < (K - 1)) {
+            dists[k + 1] = r_dist[i];
+            ids[k + 1] = r_id[i];
+          }
+
+          if (!k || dists[k - 1] < dist) {
+            dists[k] = dist;
+            ids[k] = id;
+          }
         }
       }
     }
@@ -142,23 +163,29 @@ struct KBestList {
    *
    */
   __device__ __forceinline__ void add_unique(ValueT dist, KeyT unique_id) {
-    ValueT r_dist;
-    KeyT r_id;
-    if (threadIdx.x < K) {
-      r_dist = dists[threadIdx.x];
-      r_id = ids[threadIdx.x];
+    ValueT r_dist[ITERATIONS_FOR_K];
+    KeyT r_id[ITERATIONS_FOR_K];
+    for (int i=0; i < ITERATIONS_FOR_K; ++i) {
+      const int k = i*BLOCK_DIM_X+threadIdx.x;
+      if (k < K) {
+        r_dist[i] = dists[k];
+        r_id[i] = ids[k];
+      }
     }
     __syncthreads();
-    if (threadIdx.x < K) {
-      if (r_dist > dist) {
-        if (threadIdx.x < (K - 1)) {
-          dists[threadIdx.x + 1] = r_dist;
-          ids[threadIdx.x + 1] = r_id;
-        }
+    for (int i=0; i < ITERATIONS_FOR_K; ++i) {
+      const int k = i*BLOCK_DIM_X+threadIdx.x;
+      if (k < K) {
+        if (r_dist[i] > dist) {
+          if (k < (K - 1)) {
+            dists[k + 1] = r_dist[i];
+            ids[k + 1] = r_id[i];
+          }
 
-        if (!threadIdx.x || dists[threadIdx.x - 1] <= dist) {
-          dists[threadIdx.x] = dist;
-          ids[threadIdx.x] = unique_id;
+          if (!k || dists[k - 1] <= dist) {
+            dists[k] = dist;
+            ids[k] = unique_id;
+          }
         }
       }
     }
@@ -173,9 +200,12 @@ struct KBestList {
    *
    */
   __device__ __forceinline__ void transform(const KeyT* transform) {
-    if (threadIdx.x < K) {
-      const KeyT id = ids[threadIdx.x];
-      if (id >= 0) ids[threadIdx.x] = transform[id];
+    for (int i=0; i < ITERATIONS_FOR_K; ++i) {
+      const int k = i*BLOCK_DIM_X+threadIdx.x;
+      if (k < K) {
+        const KeyT id = ids[k];
+        if (id >= 0) ids[k] = transform[id];
+      }
     }
   }
 
@@ -191,4 +221,4 @@ struct KBestList {
   }
 };
 
-#endif  // CUDA_KNN_K_BEST_LIST_CUH_
+#endif  // INCLUDE_GGNN_UTILS_CUDA_KNN_K_BEST_LIST_CUH_

@@ -1,5 +1,6 @@
 3rdparty/
 build/
+build_11/
 build_docker/
 build_local/
 .vscode
@@ -57,3 +58,6 @@ _deps
 *.exe
 *.out
 *.app
+
+
+cmake-build-debug

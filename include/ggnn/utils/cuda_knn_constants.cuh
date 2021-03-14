@@ -13,16 +13,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 // Authors: Fabian Groh, Lukas Ruppert, Patrick Wieschollek, Hendrik P.A. Lensch
-#ifndef CUDA_KNN_CONFIG_CUH_
-#define CUDA_KNN_CONFIG_CUH_
+
+#ifndef INCLUDE_GGNN_CUDA_KNN_CONSTANTS_CUH_
+#define INCLUDE_GGNN_CUDA_KNN_CONSTANTS_CUH_
 
 #include <cuda.h>
 #include <cuda_runtime.h>
 
-#include "ggnn/utils/cuda_knn_core_utils.cuh"
+#include "cuda_knn_utils.cuh"
 
 static constexpr int MAX_LAYER = 20;
-static constexpr int MAX_K = 64;
 
 __constant__ int c_Ns[MAX_LAYER];
 __constant__ int c_Ns_offsets[MAX_LAYER];
@@ -58,4 +58,4 @@ struct ConstantInfoKernel {
   int dev_id;
 };
 
-#endif  // CUDA_KNN_CONFIG_CUH_
+#endif  // INCLUDE_GGNN_CUDA_KNN_CONSTANTS_CUH_

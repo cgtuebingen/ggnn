@@ -5,6 +5,13 @@ Approximate nearest neighbor (ANN) search in high dimensions is an integral part
 
 ---
 
+# Update: 03/14/21
+This work is currently under review. 
+We've updated the code. Some new results are shown below.
+![GGNN Plots](ggnn_plots.png)
+
+
+
 ## How to run the code?
 
 ```bash
@@ -23,9 +30,20 @@ cd build_local
 cmake ..
 make
 
-# Usage of demo:
-# ./demo <base.xvecs> <query.xvecs> <gt.ivecs> <tau_build> <refinement_iterations> [<GPU id>] [<graph_cache.ggnn>]
-./demo ../data/sift/sift_base.fvecs ../data/sift/sift_query.fvecs ../data/sift/sift_groundtruth.ivecs 0.5 2 0 --v 0
+# Example for SIFT1M on GPU 0:
+./sift1m_multi  --base_filename ../data/sift/sift_base.fvecs 
+                --query_filename ../data/sift/sift_query.fvecs 
+                --groundtruth_filename ../data/sift/sift_groundtruth.ivecs 
+                --gpu_ids="0"
+
+# Example usage with 2 GPUs and 4 shards in total (4x250k = 1M):
+./sift1m_multi  --base_filename ../data/sift/sift_base.fvecs 
+                --query_filename ../data/sift/sift_query.fvecs 
+                --groundtruth_filename ../data/sift/sift_groundtruth.ivecs 
+                --gpu_ids="0 1" 
+                --factor 10000 
+                --base 100 
+                --shard 25
 ```
 
 
@@ -61,7 +79,6 @@ user@container $ ./build.sh
 
 cd build_docker
 make
-./demo ../data/sift/sift_base.fvecs ../data/sift/sift_query.fvecs ../data/sift/sift_groundtruth.ivecs 0.5 2 0 --v 0
 ```
 
 ## More Resources

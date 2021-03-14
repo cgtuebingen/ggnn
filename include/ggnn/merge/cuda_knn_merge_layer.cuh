@@ -14,8 +14,8 @@ limitations under the License.
 ==============================================================================*/
 // Authors: Fabian Groh, Lukas Ruppert, Patrick Wieschollek, Hendrik P.A. Lensch
 
-#ifndef CUDA_KNN_MERGE_LAYER_CUH_
-#define CUDA_KNN_MERGE_LAYER_CUH_
+#ifndef INCLUDE_GGNN_MERGE_CUDA_KNN_MERGE_LAYER_CUH_
+#define INCLUDE_GGNN_MERGE_CUDA_KNN_MERGE_LAYER_CUH_
 
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -23,82 +23,94 @@ limitations under the License.
 #include <cub/cub.cuh>
 #include <limits>
 
-#include "ggnn/cache/cuda_knn_multi_worked_dists_cache.cuh"
-#include "ggnn/cache/cuda_knn_sorted_buffer_cache.cuh"
-#include "ggnn/config.hpp"
-#include "ggnn/cuda_knn_config.cuh"
+#include "ggnn/cache/cuda_simple_knn_cache.cuh"
+#include "ggnn/utils/cuda_knn_constants.cuh"
 #include "ggnn/utils/cuda_knn_utils.cuh"
 
-template <typename ValueT, typename KeyT, int D, int K, int KF, int S,
-          int BLOCK_DIM_X, typename BaseT = ValueT,
-          typename BAddrT = int32_t, typename GAddrT = int32_t>
+template <typename T>
+__global__ void
+merge(const T kernel) {
+  kernel();
+}
+
+template <DistanceMeasure measure,
+          typename ValueT, typename KeyT, int D, int K, int KF, int S,
+          int BLOCK_DIM_X, typename BaseT = ValueT, typename BAddrT = int32_t,
+          typename GAddrT = int32_t>
 struct MergeKernel {
   static constexpr int KL = K - KF;
   static constexpr int MAX_ITERATIONS = 200;
 
-  // static constexpr int CACHE_SIZE = 256;
-  // static constexpr int PRIOQ_SIZE = 192;
-  // static constexpr int BEST_SIZE = 32;
+  // this allows for loop unrolling
+  static constexpr int ITERATIONS_FOR_K = (K+BLOCK_DIM_X-1)/BLOCK_DIM_X;
+  static constexpr int ITERATIONS_FOR_S = (S+BLOCK_DIM_X-1)/BLOCK_DIM_X;
 
-  static constexpr int CACHE_SIZE = 512;
-  static constexpr int PRIOQ_SIZE = 256;
-  static constexpr int BEST_SIZE = 32;
+  static constexpr int KQuery = K;
+  static constexpr int SORTED_SIZE = 128;
+  // keep the visited list just long enough to keep track of all visited points
+  static constexpr int CACHE_SIZE = ((SORTED_SIZE+MAX_ITERATIONS+BLOCK_DIM_X-1)
+                                     /BLOCK_DIM_X)*BLOCK_DIM_X;
 
-  static constexpr int KQuery = KL;
+  static constexpr int BEST_SIZE = KQuery;
+  static constexpr int VISITED_SIZE = CACHE_SIZE - SORTED_SIZE;
+  static constexpr int PRIOQ_SIZE = SORTED_SIZE - BEST_SIZE;
 
-  // typedef LinearCache<ValueT, KeyT, K, KQuery, BLOCK_DIM_X, HASH_MAP_SIZE, D,
-  //                     BaseT, BAddrT>
-  //     Cache;
+  static constexpr bool DIST_STATS = false;
+  static constexpr bool OVERFLOW_STATS = false;
 
-  // typedef SortedLinearCache<ValueT, KeyT, K, KQuery, BLOCK_DIM_X,
-  // HASH_MAP_SIZE,
-  //                           D, BaseT, BAddrT>
-  //     Cache;
+  typedef SimpleKNNCache<measure, ValueT, KeyT, KQuery, D, BLOCK_DIM_X, VISITED_SIZE,
+                          PRIOQ_SIZE, BEST_SIZE, BaseT, BAddrT, DIST_STATS,
+                          OVERFLOW_STATS>
+    Cache;
 
-  typedef SortedBufferCache<ValueT, KeyT, KQuery, D, BLOCK_DIM_X, CACHE_SIZE,
-                            PRIOQ_SIZE, BEST_SIZE, BaseT, BAddrT>
-      Cache;
-
-  void launch() {
-    lprintf(1, "MergeKernel -- Layer: %d -> %d |  N: %d [%d %d] \n", layer_top,
-            layer_btm, N, N_offset, N_offset + N);
-    launcher<<<N, BLOCK_DIM_X>>>((*this));
+  void launch(const cudaStream_t stream = 0) {
+    CHECK_GT(layer_top, layer_btm);
+    VLOG(1) << "MergeKernel -- Layer: " << layer_top << " -> " << layer_btm
+            << " |  N: " << N << " [" << N_offset << " " << N_offset+N << "] \n";
+    merge<<<N, BLOCK_DIM_X, 0, stream>>>((*this));
   }
 
-  __device__ __forceinline__ int get_seg_offset(const KeyT n) const {
-    int s_seg_btm = -1;
+  // determine the start of the top-layer segment (always 0 for layer_top = L-1)
+  __device__ __forceinline__ int get_top_seg_offset(const KeyT n) const {
+    int seg_btm;
     if (!layer_btm) {
-      const int S0_plus_offset = c_S0_offset * (c_S0 + 1);
-      const bool is_offset = n < S0_plus_offset;
-      const int S0_actual = (is_offset) ? c_S0 + 1 : c_S0;
-      s_seg_btm = (is_offset)
-                      ? (n / S0_actual)
-                      : (c_S0_offset + (n - S0_plus_offset) / S0_actual);
+      seg_btm = n / (c_S0 + 1);
+      if (seg_btm >= c_S0_offset)
+        seg_btm = c_S0_offset + (n - (c_S0_offset * (c_S0 + 1))) / c_S0;
     } else {
-      s_seg_btm = n / S;
+      seg_btm = n / S;
     }
 
-    return ((int)(s_seg_btm / pow(c_G, layer_top - layer_btm))) * S;
+    int powG = c_G; //assuming layer_top > layer_btm (which should always be the case)
+    for (int i=1; i<layer_top-layer_btm; ++i)
+      powG *= c_G;
+
+    return (seg_btm / powG) * S;
   }
 
   __device__ __forceinline__ void operator()() const {
-    const float xi =
-        (d_nn1_stats[0] * d_nn1_stats[0]) * c_tau_build * c_tau_build;
+    const float xi = (measure == Euclidean) ?
+        (d_nn1_stats[0] * d_nn1_stats[0]) * c_tau_build * c_tau_build
+        : d_nn1_stats[0] * c_tau_build;
 
-    const KeyT n = N_offset + (int)blockIdx.x;
+    const KeyT n = N_offset + static_cast<int>(blockIdx.x);
 
     const KeyT m =
         (!layer_btm) ? n : d_translation[c_STs_offsets[layer_btm] + n];
 
     Cache cache(d_base, m, xi);
 
-    const int s_offset = get_seg_offset(n);
+    const int s_offset = get_top_seg_offset(n);
 
     __shared__ KeyT s_knn[(K > S) ? K : S];
 
-    for (int s = threadIdx.x; s < S; s += BLOCK_DIM_X) {
-      s_knn[s] = s_offset + s;
+    for (int i=0; i < ITERATIONS_FOR_S; ++i) {
+      const int s = i*BLOCK_DIM_X+threadIdx.x;
+      if (s < S) {
+        s_knn[s] = s_offset + s;
+      }
     }
+    __syncthreads();
     cache.fetch(s_knn, &d_translation[c_STs_offsets[layer_top]], S);
 
     for (int layer = layer_top - 1; layer >= layer_btm; layer--) {
@@ -122,25 +134,32 @@ struct MergeKernel {
         if (anchor == Cache::EMPTY_KEY) {
           break;
         }
-        if (threadIdx.x < K) {
-          s_knn[threadIdx.x] =
-              d_graph[(static_cast<GAddrT>(c_Ns_offsets[layer]) + anchor) * K +
-                      threadIdx.x];
+        for (int i=0; i < ITERATIONS_FOR_K; ++i) {
+          const int k = i*BLOCK_DIM_X+threadIdx.x;
+          if (k < K) {
+            s_knn[k] =
+                d_graph[(static_cast<GAddrT>(c_Ns_offsets[layer]) + anchor)
+                        * K + k];
+          }
         }
         __syncthreads();
 
         cache.fetch(s_knn,
                     (!layer) ? nullptr : &d_translation[c_STs_offsets[layer]],
                     K);
+
       }
     }
 
     __syncthreads();
 
-    if (threadIdx.x < K) {
-      const KeyT idx = cache.s_cache[threadIdx.x + 1];
-      d_graph_buffer[static_cast<GAddrT>(n) * K + threadIdx.x] =
-          (idx != Cache::EMPTY_KEY) ? idx : n;
+    for (int i=0; i < ITERATIONS_FOR_K; ++i) {
+      const int k = i*BLOCK_DIM_X+threadIdx.x;
+      if (k < K) {
+        const KeyT idx = cache.s_cache[k + 1];
+        d_graph_buffer[static_cast<GAddrT>(n) * K + k] =
+            (idx != Cache::EMPTY_KEY) ? idx : n;
+      }
     }
 
     if (!layer_btm && !threadIdx.x) {
@@ -165,4 +184,4 @@ struct MergeKernel {
   int layer_top;  // layer to start
 };
 
-#endif  // CUDA_KNN_MERGE_LAYER_CUH_
+#endif  // INCLUDE_GGNN_MERGE_CUDA_KNN_MERGE_LAYER_CUH_

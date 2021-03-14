@@ -9,7 +9,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
-// Authors: Fabian Groh, Lukas Rupert, Patrick Wieschollek, Hendrik P.A. Lensch
+// Authors: Fabian Groh, Lukas Ruppert, Patrick Wieschollek, Hendrik P.A. Lensch
 
 #ifndef INCLUDE_IO_STORER_ANN_HPP_
 #define INCLUDE_IO_STORER_ANN_HPP_
@@ -24,14 +24,11 @@ class XVecsStorer : public Storer<ValueT> {
   explicit XVecsStorer(std::string path, uint dimension, uint num_elements)
       : Storer<ValueT>(path, dimension, num_elements) {}
 
-  void store(ValueT *dst, size_t num) override {
+  void store(ValueT* dst, size_t num) override {
     for (uint n = 0; n < num; ++n) {
-      this->hnd->write(reinterpret_cast<char *>(&this->dimension), sizeof(int));
-      for (uint i = 0; i < this->dimension; ++i) {
-        this->hnd->write(
-            reinterpret_cast<char *>(&dst[n * this->dimension + i]),
-            sizeof(ValueT));
-      }
+      this->hnd->write(reinterpret_cast<char*>(&this->dimension), sizeof(int));
+      this->hnd->write(reinterpret_cast<char*>(&dst[n * this->dimension]),
+                       sizeof(ValueT) * this->dimension);
     }
   }
 };

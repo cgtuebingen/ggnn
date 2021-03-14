@@ -9,7 +9,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
-// Authors: Fabian Groh, Lukas Rupert, Patrick Wieschollek, Hendrik P.A. Lensch
+// Authors: Fabian Groh, Lukas Ruppert, Patrick Wieschollek, Hendrik P.A. Lensch
 
 #ifndef INCLUDE_IO_LOADER_HPP_
 #define INCLUDE_IO_LOADER_HPP_
@@ -48,7 +48,7 @@ class Loader {
    * @param skip number of vectors to skip (not bytes, not values)
    * @param num  number of elements to read
    */
-  virtual void load(ValueT *dst, size_t skip, size_t num) = 0;
+  virtual void load(ValueT* dst, size_t skip, size_t num) = 0;
 
   int32_t Dim() const { return dimension; }
   int32_t Num() const { return num_elements; }
@@ -56,7 +56,7 @@ class Loader {
 
  protected:
   std::string path;
-  std::ifstream *hnd;
+  std::ifstream* hnd;
 
   int32_t dimension;
   int32_t num_elements;
