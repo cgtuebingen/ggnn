@@ -1,0 +1,55 @@
+name: Compile
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - master
+      - release*
+
+concurrency:
+  group: compile-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # Test the build with the latest CUDA toolkit and several Python versions
+  nvcc-ubuntu:
+    strategy:
+      fail-fast: false
+      matrix:
+        #python: ['3.8', '3.9', '3.10', '3.11', '3.12']
+        python: ['3.12']
+
+    name: "Python ${{ matrix.python }} / NVCC (CUDA 12.6.3) / ubuntu-latest"
+    runs-on: ubuntu-latest
+    # see https://hub.docker.com/r/nvidia/cuda
+    container: nvidia/cuda:12.6.3-devel-ubuntu24.04
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: apt-get update && DEBIAN_FRONTEND="noninteractive" apt-get install -y lsb-release unzip git && apt-get clean all
+
+    - name: Setup Python ${{ matrix.python }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python }}
+
+    - name: Install the latest CMake
+      uses: lukka/get-cmake@latest
+
+    - name: Install Nanobind
+      run: |
+        python -m pip install nanobind typing_extensions
+
+    - name: Configure
+      run: >
+        cmake -S . -B build
+
+    - name: Build C++
+      run: cmake --build build -j 2
+
+    - name: Build Wheel
+      run: python -m pip wheel .

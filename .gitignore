@@ -1,12 +1,13 @@
-3rdparty/
-build/
-build_11/
-build_docker/
-build_local/
+build*/
 .vscode
 data/**
+evaluation/
+.idea/
 
-include/ggnn/alternatives
+run_Project.txt
+
+.cache
+.py-build-cmake_cache
 
 ### CMake ###
 CMakeLists.txt.user
@@ -21,43 +22,3 @@ compile_commands.json
 CTestTestfile.cmake
 _deps
 
-### CMake Patch ###
-# External projects
-*-prefix/
-
-### C++ ###
-# Prerequisites
-*.d
-
-# Compiled Object files
-*.slo
-*.lo
-*.o
-*.obj
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
-
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
-
-# Executables
-*.exe
-*.out
-*.app
-
-
-cmake-build-debug

@@ -1,5 +1,15 @@
 ---
-Language:        Cpp
-BasedOnStyle:  Google
+Language: Cpp
+BasedOnStyle: Google
 DerivePointerAlignment: false
 PointerAlignment: Left
+ColumnLimit: 100
+IncludeBlocks: Preserve
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: False
+AllowShortBlocksOnASingleLine: Empty
+BreakBeforeBraces: Stroustrup
+AllowShortEnumsOnASingleLine: False
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortCaseLabelsOnASingleLine: False
+

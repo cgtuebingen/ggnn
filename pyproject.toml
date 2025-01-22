@@ -1,0 +1,51 @@
+[project] # Project metadata
+name = "GGNN"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { "file" = "LICENSE" }
+authors = [
+    {"name" = "Lukas Ruppert", "email" = "lukas.ruppert@uni-tuebingen.de"},
+    {"name" = "Deborah Kornwolf", "email" = "deborah.kornwolf@uni-tuebingen.de"},]
+keywords = ["kNN", "cuda", "nearest-neighbor", "graph", "GPU"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: GPU :: NVIDIA CUDA :: 12",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: C++",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Software Development",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Software Development :: Libraries :: Python Modules"
+]
+
+dependencies = []
+dynamic = ["version", "description"]
+
+[project.urls]
+Homepage = "https://github.com/cgtuebingen/ggnn"
+# TODO: Documentation = "https://ggnn.readthedocs.io/"
+
+[build-system] # How pip and other frontends should build this project
+requires = ["py-build-cmake~=0.3.3", "nanobind", "typing_extensions"]
+build-backend = "py_build_cmake.build"
+
+[tool.py-build-cmake.module] # Where to find the Python module to package
+directory = "python-src"
+
+[tool.py-build-cmake.sdist] # What to include in source distributions
+include = ["CMakeLists.txt", "python-src/*", "src/*", "include/*"]
+
+[tool.py-build-cmake.cmake] # How to build the CMake project
+build_type = "Release"
+source_path = "."
+build_args = ["-j"]
+install_components = ["python_modules"]

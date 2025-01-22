@@ -1,191 +1,245 @@
-CMAKE_MINIMUM_REQUIRED( VERSION 3.3.0 )
+CMAKE_MINIMUM_REQUIRED(VERSION 3.23 FATAL_ERROR)
 
-project (GGNN)
-set(CMAKE_CXX_STANDARD 14)
+project (GGNN LANGUAGES CXX CUDA)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CUDA_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
+set(CMAKE_CUDA_STANDARD_REQUIRED TRUE)
 
+# CUDA toolkit version 12 required for C++20 support
+find_package(CUDAToolkit 12 REQUIRED)
 
-find_package(CUDA REQUIRED)
+# CMake does not reject g++9 which only has incomplete experimental support for C++20
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+    if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10)
+        message(FATAL_ERROR "GCC or Clang version 10 or higher required for C++20 support!")
+    endif()
+else()
+    message(WARNING "Compilation has only been tested with GCC and Clang.")
+endif()
 
-set(CUDA_ARCH_LIST Auto)
-# set(CUDA_ARCH_LIST "7.0")
-# set(CUDA_ARCH_LIST "7.5 6.1 8.6")
-cuda_select_nvcc_arch_flags(CUDA_ARCH_FLAGS ${CUDA_ARCH_LIST})
-list(APPEND CUDA_NVCC_FLAGS ${CUDA_ARCH_FLAGS})
+# glog requires libunwind but does not look in the libunwind folder containing LLVM's version.
+# This is a workaround for using e.g. libunwind-18-dev on Ubuntu 24.04.
+find_path (Unwind_INCLUDE_DIR NAMES unwind.h libunwind.h PATH_SUFFIXES libunwind DOC "unwind include directory")
 
-set(CUB_INCLUDE_PATH "3rdparty/cub")
-set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -std=c++14 -Xptxas=-v --expt-relaxed-constexpr --default-stream per-thread" )
-# debug
-# set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -G -g")
-# profile
-set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -lineinfo")
-
-add_subdirectory("3rdparty/pybind11")
-set(GFLAGS_NAMESPACE "google")
-add_subdirectory("3rdparty/glog")
-
-message("CUDA_ARCH_LIST: ${CUDA_ARCH_LIST}")
-message("CUDA_NVCC_FLAGS: ${CUDA_NVCC_FLAGS}")
-
-# configurations for specific datasets
-# TODO: generate from template using CMake?
-cuda_add_executable(sift1m src/sift1m.cu)
-target_include_directories(sift1m
-  PRIVATE
-  ${CUDA_NVCC_FLAGS}
-  ${CUB_INCLUDE_PATH}
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
+include(FetchContent)
+# if not installed, fetch glog sources from github
+FetchContent_Declare(
+  glog
+  GIT_REPOSITORY https://github.com/google/glog.git
+  GIT_TAG        7b134a5c82c0c0b5698bb6bf7a835b230c5638e4 # release 0.7.1
+  FIND_PACKAGE_ARGS
 )
-target_link_libraries(sift1m ${CUDA_curand_LIBRARY} glog::glog)
-
-cuda_add_executable(sift1m_multi src/sift1m_multi_gpu.cu)
-target_include_directories(sift1m_multi
-  PRIVATE
-  ${CUDA_NVCC_FLAGS}
-  ${CUB_INCLUDE_PATH}
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
+FetchContent_Declare(
+  gflags
+  GIT_REPOSITORY https://github.com/gflags/gflags.git
+  GIT_TAG        e171aa2d15ed9eb17054558e0b3a6a413bb01067 # release 2.2.2
+  FIND_PACKAGE_ARGS
 )
-target_link_libraries(sift1m_multi ${CUDA_curand_LIBRARY} glog::glog)
+FetchContent_MakeAvailable(glog gflags)
 
-cuda_add_executable(sift1b_subsets src/sift1b_subsets.cu)
-target_include_directories(sift1b_subsets
-  PRIVATE
-  ${CUDA_NVCC_FLAGS}
-  ${CUB_INCLUDE_PATH}
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-target_link_libraries(sift1b_subsets ${CUDA_curand_LIBRARY} glog::glog)
+find_package(glog REQUIRED)
+find_package(gflags)
 
-cuda_add_executable(sift1b_multi src/sift1b_multi_gpu.cu)
-target_include_directories(sift1b_multi
-  PRIVATE
-  ${CUDA_NVCC_FLAGS}
-  ${CUB_INCLUDE_PATH}
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-target_link_libraries(sift1b_multi ${CUDA_curand_LIBRARY} glog::glog)
+# optional (required for nanobind bindings)
+find_package(Python 3.8 COMPONENTS Interpreter Development.Module)
 
-cuda_add_executable(sift1b_multi_top10 src/sift1b_multi_gpu_top10.cu)
-target_include_directories(sift1b_multi_top10
-  PRIVATE
-  ${CUDA_NVCC_FLAGS}
-  ${CUB_INCLUDE_PATH}
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-target_link_libraries(sift1b_multi_top10 ${CUDA_curand_LIBRARY} glog::glog)
+if (Python_FOUND)
+    execute_process(
+      COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir
+      OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE NB_DIR)
+    list(APPEND CMAKE_PREFIX_PATH "${NB_DIR}")
 
-cuda_add_executable(deep1b_multi src/deep1b_multi_gpu.cu)
-target_include_directories(deep1b_multi
-  PRIVATE
-  ${CUDA_NVCC_FLAGS}
-  ${CUB_INCLUDE_PATH}
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-target_link_libraries(deep1b_multi ${CUDA_curand_LIBRARY} glog::glog)
+    find_package(nanobind CONFIG)
+endif()
 
-cuda_add_executable(sift1m_stats src/sift1m_stats.cu)
-target_include_directories(sift1m_stats
-  PRIVATE
-  ${CUDA_NVCC_FLAGS}
-  ${CUB_INCLUDE_PATH}
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-target_link_libraries(sift1m_stats ${CUDA_curand_LIBRARY} glog::glog)
 
-cuda_add_executable(sift1m_no_slack_query src/sift1m_no_slack_query.cu)
-target_include_directories(sift1m_no_slack_query
-  PRIVATE
-  ${CUDA_NVCC_FLAGS}
-  ${CUB_INCLUDE_PATH}
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-target_link_libraries(sift1m_no_slack_query ${CUDA_curand_LIBRARY} glog::glog)
+# Set a default configuration if none was specified
+if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    message(STATUS "No release type specified. Setting to 'Release'.")
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "RelWithDebInfo")
+endif()
 
-cuda_add_executable(sift1m_subsets src/sift1m_subsets.cu)
-target_include_directories(sift1m_subsets
-  PRIVATE
-  ${CUDA_NVCC_FLAGS}
-  ${CUB_INCLUDE_PATH}
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-target_link_libraries(sift1m_subsets ${CUDA_curand_LIBRARY} glog::glog)
+message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
 
-cuda_add_executable(sift1m_batchsize src/sift1m_batchsize.cu)
-target_include_directories(sift1m_batchsize
-  PRIVATE
-  ${CUDA_NVCC_FLAGS}
-  ${CUB_INCLUDE_PATH}
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-target_link_libraries(sift1m_batchsize ${CUDA_curand_LIBRARY} glog::glog)
 
-cuda_add_executable(sift1m_base_vs_base src/sift1m_base_vs_base.cu)
-target_include_directories(sift1m_base_vs_base
-  PRIVATE
-  ${CUDA_NVCC_FLAGS}
-  ${CUB_INCLUDE_PATH}
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-target_link_libraries(sift1m_base_vs_base ${CUDA_curand_LIBRARY} glog::glog)
+# Configure CUDA architectures to compile for
+if (NOT DEFINED GGNN_CUDA_ARCHITECTURES)
+  if (DEFINED ENV{TORCH_CUDA_ARCH_LIST})
+    message(STATUS "Parsing TORCH_CUDA_ARCH_LIST: $ENV{TORCH_CUDA_ARCH_LIST}")
+    string(REPLACE "." "" TORCH_CUDA_ARCHITECTURES $ENV{TORCH_CUDA_ARCH_LIST})
+    string(REPLACE "  " " " TORCH_CUDA_ARCHITECTURES ${TORCH_CUDA_ARCHITECTURES})
+    string(REPLACE " " "-real " TORCH_CUDA_ARCHITECTURES "${TORCH_CUDA_ARCHITECTURES} ")
+    string(REPLACE "+PTX-real" " " TORCH_CUDA_ARCHITECTURES ${TORCH_CUDA_ARCHITECTURES})
+    string(REPLACE " " ";" TORCH_CUDA_ARCHITECTURES ${TORCH_CUDA_ARCHITECTURES})
+    set(GGNN_CUDA_ARCHITECTURES ${TORCH_CUDA_ARCHITECTURES} CACHE STRING "CUDA architecture(s) to compile for.")
+  else()
+    # adjust this based on your available GPUs
+    # see https://developer.nvidia.com/cuda-gpus
+    # 6.1 - 1080Ti
+    # 7.0 - V100
+    # 7.5 - 2080Ti
+    # 8.6 - 3090
+    # 8.9 - 4090
+    # 9.0 - H100
+    # the following are also allowed:
+    # all-major
+    # native
+    set(GGNN_CUDA_ARCHITECTURES all-major CACHE STRING "CUDA architecture(s) to compile for.")
+    mark_as_advanced(CMAKE_CUDA_ARCHITECTURES)
+    # set_property(CACHE GGNN_CUDA_ARCHITECTURES PROPERTY STRINGS "all-major" "native" "61" "70" "75" "86" "89" "90")
+  endif()
+endif()
 
-cuda_add_executable(sift1m_load_hnsw src/sift1m_load_hnsw.cu)
-target_include_directories(sift1m_load_hnsw
-  PRIVATE
-  ${CUDA_NVCC_FLAGS}
-  ${CUB_INCLUDE_PATH}
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-target_link_libraries(sift1m_load_hnsw ${CUDA_curand_LIBRARY} glog::glog)
+set(CMAKE_CUDA_ARCHITECTURES ${GGNN_CUDA_ARCHITECTURES} CACHE STRING "CUDA architecture(s) to compile for." FORCE)
+message(STATUS "CMAKE_CUDA_ARCHITECTURES: ${CMAKE_CUDA_ARCHITECTURES}")
 
-cuda_add_executable(sift1m_top10 src/sift1m_top10.cu)
-target_include_directories(sift1m_top10
-  PRIVATE
-  ${CUDA_NVCC_FLAGS}
-  ${CUB_INCLUDE_PATH}
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-target_link_libraries(sift1m_top10 ${CUDA_curand_LIBRARY} glog::glog)
 
-cuda_add_executable(sift1m_top100 src/sift1m_top100.cu)
-target_include_directories(sift1m_top100
-  PRIVATE
-  ${CUDA_NVCC_FLAGS}
-  ${CUB_INCLUDE_PATH}
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-target_link_libraries(sift1m_top100 ${CUDA_curand_LIBRARY} glog::glog)
+# Set CUDA flags based on build type
+set(CMAKE_CUDA_FLAGS "--expt-relaxed-constexpr")
+if (CMAKE_BUILD_TYPE MATCHES "Debug")
+  set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -G -g -Xptxas=-v")
+elseif(CMAKE_BUILD_TYPE MATCHES "RelWithDebInfo")
+  set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -lineinfo -Xptxas=-v")
+endif()
 
-cuda_add_executable(nytimes src/nytimes.cu)
-target_include_directories(nytimes
-  PRIVATE
-  ${CUDA_NVCC_FLAGS}
-  ${CUB_INCLUDE_PATH}
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-target_link_libraries(nytimes ${CUDA_curand_LIBRARY} glog::glog)
+message(STATUS "CMAKE_CUDA_FLAGS: ${CMAKE_CUDA_FLAGS}")
 
-cuda_add_executable(nytimes_top10 src/nytimes_top10.cu)
-target_include_directories(nytimes_top10
-  PRIVATE
-  ${CUDA_NVCC_FLAGS}
-  ${CUB_INCLUDE_PATH}
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-target_link_libraries(nytimes_top10 ${CUDA_curand_LIBRARY} glog::glog)
 
-cuda_add_executable(glove200 src/glove200.cu)
-target_include_directories(glove200
-  PRIVATE
-  ${CUDA_NVCC_FLAGS}
-  ${CUB_INCLUDE_PATH}
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-target_link_libraries(glove200 ${CUDA_curand_LIBRARY} glog::glog)
+# make compile commands available to clangd
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+# don't hide the include paths in a separate file
+set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_INCLUDES OFF)
 
-cuda_add_executable(gist src/gist.cu)
-target_include_directories(gist
-  PRIVATE
-  ${CUDA_NVCC_FLAGS}
-  ${CUB_INCLUDE_PATH}
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-target_link_libraries(gist ${CUDA_curand_LIBRARY} glog::glog)
+add_library(GGNNBase SHARED)
+target_sources(GGNNBase PRIVATE
+    "src/ggnn/base/graph_config.cpp"
+    "src/ggnn/base/graph.cpp"
+
+    "src/ggnn/base/data.cu"
+    "src/ggnn/base/dataset.cu"
+    "src/ggnn/base/gpu_instance.cu"
+    "src/ggnn/base/ggnn.cu"
+    "src/ggnn/base/result_merger.cpp"
+    "src/ggnn/base/eval.cpp"
+
+    "include/ggnn/base/lib.h"
+    "include/ggnn/base/result_merger.h"
+
+    "include/ggnn/base/graph_config.h"
+    "include/ggnn/base/graph.h"
+    "include/ggnn/base/gpu_instance.cuh"
+    )
+  target_sources(GGNNBase PUBLIC
+    "include/ggnn/base/def.h"
+    "include/ggnn/base/fwd.h"
+
+    "include/ggnn/base/data.cuh"
+    "include/ggnn/base/dataset.cuh"
+    "include/ggnn/base/ggnn.cuh"
+    "include/ggnn/base/eval.h"
+    )
+
+add_library(GGNNConstruction SHARED)
+target_sources(GGNNConstruction PRIVATE
+    "src/ggnn/construction/graph_construction.cu"
+
+    "src/ggnn/construction/graph_buffer.cu"
+
+    "src/ggnn/construction/top_merge_layer.cu"
+    "src/ggnn/construction/merge_layer.cu"
+    "src/ggnn/construction/wrs_select_layer.cu"
+    "src/ggnn/construction/sym_buffer_merge_layer.cu"
+    "src/ggnn/construction/sym_query_layer.cu"
+
+    "include/ggnn/construction/graph_buffer.cuh"
+
+    "include/ggnn/construction/top_merge_layer.cuh"
+    "include/ggnn/construction/merge_layer.cuh"
+    "include/ggnn/construction/wrs_select_layer.cuh"
+    "include/ggnn/construction/sym_query_layer.cuh"
+    "include/ggnn/construction/sym_buffer_merge_layer.cuh"
+
+    "include/ggnn/cuda_utils/distance.cuh"
+    "include/ggnn/cuda_utils/k_best_list.cuh"
+    "include/ggnn/cuda_utils/simple_knn_cache.cuh"
+    "include/ggnn/cuda_utils/simple_knn_sym_cache.cuh"
+    "include/ggnn/cuda_utils/check.cuh"
+    )
+target_sources(GGNNConstruction PUBLIC
+    "include/ggnn/construction/graph_construction.cuh"
+    )
+add_library(GGNNQuery SHARED)
+target_sources(GGNNQuery PRIVATE
+    "src/ggnn/query/query_kernels.cu"
+
+    "src/ggnn/query/bf_query_layer.cu"
+    "src/ggnn/query/query_layer.cu"
+
+    "include/ggnn/query/bf_query_layer.cuh"
+    "include/ggnn/query/query_layer.cuh"
+
+    "include/ggnn/cuda_utils/distance.cuh"
+    "include/ggnn/cuda_utils/k_best_list.cuh"
+    "include/ggnn/cuda_utils/simple_knn_cache.cuh"
+    "include/ggnn/cuda_utils/check.cuh"
+    )
+target_sources(GGNNQuery PUBLIC
+    "include/ggnn/query/query_kernels.cuh"
+    )
+
+target_link_libraries(GGNNBase PRIVATE CUDA::curand glog::glog)
+target_link_libraries(GGNNConstruction PRIVATE CUDA::curand glog::glog)
+target_link_libraries(GGNNQuery PRIVATE glog::glog)
+target_include_directories(GGNNBase PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_include_directories(GGNNConstruction PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_include_directories(GGNNQuery PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+
+if (nanobind_FOUND)
+    message(STATUS "building nanobind module")
+    nanobind_add_module(GGNN NB_STATIC NOMINSIZE "src/ggnn/python/nanobind.cu")
+    target_link_libraries(GGNN PRIVATE GGNNBase GGNNConstruction GGNNQuery glog::glog)
+    nanobind_add_stub(GGNN_stub MODULE GGNN OUTPUT GGNN.pyi MARKER_FILE py.typed DEPENDS GGNN)
+
+    if (PY_BUILD_CMAKE_MODULE_NAME)
+        message(STATUS "configuring python module installation")
+        set_property(TARGET GGNN APPEND PROPERTY INSTALL_RPATH "$ORIGIN")
+        install(TARGETS GGNNBase GGNNConstruction GGNNQuery GGNN
+            EXCLUDE_FROM_ALL
+            COMPONENT python_modules
+            DESTINATION ${PY_BUILD_CMAKE_MODULE_NAME})
+        # install glog if we had to compile it ourselves
+        if (TARGET glog)
+            install(TARGETS glog
+                LIBRARY
+                EXCLUDE_FROM_ALL
+                COMPONENT python_modules
+                DESTINATION ${PY_BUILD_CMAKE_MODULE_NAME})
+        endif()
+        install(FILES ${CMAKE_BINARY_DIR}/py.typed ${CMAKE_BINARY_DIR}/GGNN.pyi
+            EXCLUDE_FROM_ALL
+            COMPONENT python_modules
+            DESTINATION ${PY_BUILD_CMAKE_MODULE_NAME})
+    endif()
+endif()
+
+if (NOT PY_BUILD_CMAKE_MODULE_NAME)
+  if (gflags_FOUND)
+    set(files
+      "${CMAKE_CURRENT_SOURCE_DIR}/examples/cpp-and-cuda/ggnn_main.cpp"
+      "${CMAKE_CURRENT_SOURCE_DIR}/examples/cpp-and-cuda/ggnn_main_gpu_data.cu"
+      "${CMAKE_CURRENT_SOURCE_DIR}/examples/cpp-and-cuda/ggnn_main_multi_gpu.cpp"
+      "${CMAKE_CURRENT_SOURCE_DIR}/examples/cpp-and-cuda/ggnn_benchmark.cpp"
+    )
+    foreach(filename ${files})
+        get_filename_component(EXECUTABLE_NAME "${filename}" NAME_WLE)
+        add_executable(${EXECUTABLE_NAME} ${filename})
+        target_link_libraries(${EXECUTABLE_NAME} PRIVATE GGNNBase GGNNConstruction GGNNQuery glog::glog gflags_nothreads_static)
+    endforeach()
+
+    target_link_libraries(ggnn_main_gpu_data PRIVATE CUDA::curand)
+  else()
+    message(STATUS "gflags not found. Skipping example projects.")
+  endif()
+endif()

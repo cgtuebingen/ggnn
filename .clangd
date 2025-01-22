@@ -1,0 +1,30 @@
+CompileFlags:
+  Add:
+    - -Wall
+    - -Wextra
+    # do not complain about features incompatible with sm_35
+    - --cuda-gpu-arch=sm_52
+  Remove:
+    - --expt-relaxed-constexpr
+    - --default-stream
+    - --generate-code=*
+    - --options-file
+    - -arch=*
+    - -forward-unknown-to-host-compiler
+    - -Xptxas=*
+    - -Xcompiler=*
+
+Diagnostics:
+  ClangTidy:
+    Add:
+      - bugprone-*
+      - performance-*
+    Remove:
+      - bugprone-macro-parentheses
+  UnusedIncludes: Strict
+  MissingIncludes: Strict
+  Includes:
+    IgnoreHeader:
+      - cub/.*
+      - cuda/.*
+      - glog/.*
