@@ -1,5 +1,5 @@
 [project] # Project metadata
-name = "pyGGNN"
+name = "GGNN"
 readme = "README.md"
 requires-python = ">=3.8"
 license = { "file" = "LICENSE" }

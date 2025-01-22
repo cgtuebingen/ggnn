@@ -1,6 +1,6 @@
 #! /usr/bin/python3
 
-import pyggnn as ggnn
+import ggnn
 import torch
 
 # create data

@@ -22,7 +22,7 @@ By default, the log level is set to ``0``:
 
   #! /usr/bin/python3
 
-  import pyggnn as ggnn
+  import ggnn
 
   #get detailed logs
   ggnn.set_log_level(4)
@@ -174,7 +174,7 @@ Otherwise, this works the same way as above.
 
   #! /usr/bin/python3
 
-  import pyggnn as ggnn
+  import ggnn
   import torch
 
   # create data
@@ -224,7 +224,7 @@ and passed to the ``Evaluator`` directly.
 
   #! /usr/bin/python3
 
-  import pyggnn as ggnn
+  import ggnn
 
   path_to_dataset = '/path/to/sift/'
 

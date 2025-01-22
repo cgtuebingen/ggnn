@@ -39,8 +39,9 @@ The `ggnn` module can then be installed using the package manager pip::
   python3 -m pip install .
 
 
-.. note::
-   Automatic installation via ``pip install ggnn`` is under development.
+.. caution::
+  The PyPI package ``ggnn`` belongs to a different project.
+  Running ``pip install ggnn`` will not install the GGNN Python module.
 
 
 Installing the GGNN C++ Library

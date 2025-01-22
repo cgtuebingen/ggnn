@@ -1,4 +1,4 @@
-name: PyPI Build
+name: Build Python Wheels
 
 on:
   workflow_dispatch:
@@ -18,8 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        #python: ['3.8', '3.9', '3.10', '3.11', '3.12']
-        python: ['3.12']
+        python: ['3.8', '3.9', '3.10', '3.11', '3.12']
 
     name: "Python ${{ matrix.python }} / NVCC (CUDA 12.6.3) / ubuntu-latest"
     runs-on: ubuntu-latest
@@ -51,32 +50,32 @@ jobs:
         name: python-package-distributions
         path: dist/
 
-  # https://packaging.python.org/en/latest/guides/publishing-package-distribution-releases-using-github-actions-ci-cd-workflows/
-  publish-to-pypi:
-    name: Publish GGNN package to PyPI
-    if: startsWith(github.ref, 'refs/tags/')
-    needs:
-    - build
-    runs-on: ubuntu-latest
-    environment:
-      name: pypi
-      url: https://pypi.org/p/pyGGNN
-    permissions:
-      id-token: write
-
-    steps:
-    - name: Download all the dists
-      uses: actions/download-artifact@v4
-      with:
-        name: python-package-distributions
-        path: dist/
-    - name: Publish distribution package to PyPI
-      uses: pypa/gh-action-pypi-publish@release/v1
+  # # https://packaging.python.org/en/latest/guides/publishing-package-distribution-releases-using-github-actions-ci-cd-workflows/
+  # publish-to-pypi:
+  #   name: Publish GGNN package to PyPI
+  #   if: startsWith(github.ref, 'refs/tags/')
+  #   needs:
+  #   - build
+  #   runs-on: ubuntu-latest
+  #   environment:
+  #     name: pypi
+  #     url: https://pypi.org/p/pyGGNN
+  #   permissions:
+  #     id-token: write
+  #
+  #   steps:
+  #   - name: Download all the dists
+  #     uses: actions/download-artifact@v4
+  #     with:
+  #       name: python-package-distributions
+  #       path: dist/
+  #   - name: Publish distribution package to PyPI
+  #     uses: pypa/gh-action-pypi-publish@release/v1
 
   github-release:
     name: Sign the Python distribution package with Sigstore and upload them to GitHub Release
     needs:
-    - publish-to-pypi
+    - build
     runs-on: ubuntu-latest
 
     permissions:
