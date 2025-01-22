@@ -1,4 +1,4 @@
-name: Compile
+name: PyPI Build
 
 on:
   workflow_dispatch:
@@ -37,19 +37,16 @@ jobs:
       with:
         python-version: ${{ matrix.python }}
 
-    - name: Install the latest CMake
-      uses: lukka/get-cmake@latest
-
-    - name: Install Nanobind
-      run: |
-        python -m pip install nanobind typing_extensions
-
-    - name: Configure
-      run: >
-        cmake -S . -B build
-
-    - name: Build C++
-      run: cmake --build build -j 2
-
-    - name: Build Wheel
-      run: python -m pip wheel .
+    - name: Install pypa/build
+      run: >-
+        python3 -m
+        pip install
+        build
+        --user
+    - name: Build a binary wheel and a source tarball
+      run: python3 -m build
+    - name: Store the distribution packages
+      uses: actions/upload-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/

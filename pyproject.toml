@@ -5,7 +5,7 @@ requires-python = ">=3.8"
 license = { "file" = "LICENSE" }
 authors = [
     {"name" = "Lukas Ruppert", "email" = "lukas.ruppert@uni-tuebingen.de"},
-    {"name" = "Deborah Kornwolf", "email" = "deborah.kornwolf@uni-tuebingen.de"},]
+    {"name" = "Deborah Kornwolf", "email" = "deborah.kornwolf@student.uni-tuebingen.de"},]
 keywords = ["kNN", "cuda", "nearest-neighbor", "graph", "GPU"]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -42,7 +42,7 @@ build-backend = "py_build_cmake.build"
 directory = "python-src"
 
 [tool.py-build-cmake.sdist] # What to include in source distributions
-include = ["CMakeLists.txt", "python-src/*", "src/*", "include/*"]
+include = ["CMakeLists.txt", "python-src/*", "src/*", "include/*", "examples/*"]
 
 [tool.py-build-cmake.cmake] # How to build the CMake project
 build_type = "Release"
