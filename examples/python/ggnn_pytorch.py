@@ -1,6 +1,6 @@
 #! /usr/bin/python3
 
-import ggnn
+import pyggnn as ggnn
 import torch
 
 # get detailed logs
@@ -36,5 +36,5 @@ gt_indices, gt_dists = my_ggnn.bf_query(query, k_gt=k_query, measure=measure)
 evaluator = ggnn.Evaluator(base, query, gt_indices, k_query=k_query)
 print(evaluator.evaluate_results(indices))
 
-# print the indices of the 10 NN of the first five queries and their squared euclidean distances 
+# print the indices of the 10 NN of the first five queries and their squared euclidean distances
 print('indices:', indices[:5], '\n squared dists:',  dists[:5], '\n')

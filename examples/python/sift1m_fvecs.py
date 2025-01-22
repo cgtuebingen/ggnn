@@ -1,6 +1,6 @@
 #! /usr/bin/python3
 
-import ggnn
+import pyggnn as ggnn
 
 path_to_dataset = '/graphics/scratch/datasets/ANN_datasets/SIFT1M/sift/'
 

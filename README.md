@@ -95,7 +95,7 @@ The GGNN python module can be used to perform GPU-accelerated approximate neares
 ```python
 #! /usr/bin/python3
 
-import ggnn
+import pyggnn as ggnn
 import torch
 
 # get detailed logs

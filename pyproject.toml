@@ -1,5 +1,5 @@
 [project] # Project metadata
-name = "GGNN"
+name = "pyGGNN"
 readme = "README.md"
 requires-python = ">=3.8"
 license = { "file" = "LICENSE" }
@@ -32,7 +32,7 @@ dynamic = ["version", "description"]
 
 [project.urls]
 Homepage = "https://github.com/cgtuebingen/ggnn"
-# TODO: Documentation = "https://ggnn.readthedocs.io/"
+Documentation = "https://ggnn.readthedocs.io/"
 
 [build-system] # How pip and other frontends should build this project
 requires = ["py-build-cmake~=0.3.3", "nanobind", "typing_extensions"]

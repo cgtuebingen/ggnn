@@ -1,6 +1,6 @@
 #! /usr/bin/python3
 
-import ggnn
+import pyggnn as ggnn
 import torch
 
 # get detailed logs

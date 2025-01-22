@@ -200,7 +200,7 @@ if (nanobind_FOUND)
     message(STATUS "building nanobind module")
     nanobind_add_module(GGNN NB_STATIC NOMINSIZE "src/ggnn/python/nanobind.cu")
     target_link_libraries(GGNN PRIVATE GGNNBase GGNNConstruction GGNNQuery glog::glog)
-    nanobind_add_stub(GGNN_stub MODULE GGNN OUTPUT GGNN.pyi MARKER_FILE py.typed DEPENDS GGNN)
+    nanobind_add_stub(pyGGNN_stub MODULE GGNN OUTPUT pyGGNN.pyi MARKER_FILE py.typed DEPENDS GGNN)
 
     if (PY_BUILD_CMAKE_MODULE_NAME)
         message(STATUS "configuring python module installation")
@@ -217,7 +217,7 @@ if (nanobind_FOUND)
                 COMPONENT python_modules
                 DESTINATION ${PY_BUILD_CMAKE_MODULE_NAME})
         endif()
-        install(FILES ${CMAKE_BINARY_DIR}/py.typed ${CMAKE_BINARY_DIR}/GGNN.pyi
+        install(FILES ${CMAKE_BINARY_DIR}/py.typed ${CMAKE_BINARY_DIR}/pyGGNN.pyi
             EXCLUDE_FROM_ALL
             COMPONENT python_modules
             DESTINATION ${PY_BUILD_CMAKE_MODULE_NAME})

@@ -1,6 +1,6 @@
 #! /usr/bin/python3
 
-import ggnn
+import pyggnn as ggnn
 
 import h5py
 import numpy as np
