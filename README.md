@@ -12,8 +12,7 @@ GGNN is based on the method proposed in the paper [GGNN: Graph-based GPU Nearest
 by Fabian Groh, Lukas Ruppert, Patrick Wieschollek, and Hendrik P.A. Lensch.
 The original/official code corresponding to the published paper can be found in the [release_0.5](https://github.com/cgtuebingen/ggnn/tree/release_0.5) branch.
 
-<!-- #ToDo: Insert link to docu
-For more detailed information see our [documentation]().-->
+For more detailed information see our [documentation](https://ggnn.readthedocs.io/en/latest/).
 
 ## Installing the Python Module
 
@@ -79,8 +78,7 @@ export CXX=g++-10
 export CUDAHOSTCXX=g++-10
 ```
 
-<!--#ToDo: Insert link to Installation
-For installation in C++, please see the [documentation]().-->
+For installation details, please see the [documentation](https://ggnn.readthedocs.io/en/latest/install.html).
 
 ## Example Usage
 
@@ -138,8 +136,10 @@ print('indices:', indices[:5], '\n squared dists:',  dists[:5], '\n')
 
 ```
 
-<!--#ToDo: Insert link to Usage
-For more examples in Python and in C++ see the [examples]() folder. For more information about the parameters, on how to deal with data that is already on a GPU and on how to utilize multiple GPUs, check out the [documentation](). We also provide scripts that load typical [benchmark datasets]().-->
+For more examples in Python and in C++ see the [examples](https://github.com/cgtuebingen/ggnn/tree/release_0.9/examples) folder.
+For more information about the parameters, on how to deal with data that is already on a GPU and on how to utilize multiple GPUs,
+check out the [documentation](https://ggnn.readthedocs.io/en/latest/usage_python.html).
+We also provide scripts that load and process typical [benchmark datasets](https://ggnn.readthedocs.io/en/latest/benchmarking.html).
 
 
 ## Capabilities and Limitations
