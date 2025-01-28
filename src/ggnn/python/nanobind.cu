@@ -128,7 +128,7 @@ consteval const char* get_name_for_dataset_type<int32_t>()
   return "IntDataset";
 };
 
-NB_MODULE(GGNN, m)
+NB_MODULE(ggnn, m)
 {
   m.doc() = R"(GGNN: Graph-Based GPU Nearest Neighbor Search,
 by Fabian Groh, Lukas Ruppert, Patrick Wieschollek, Hendrik P.A. Lensch,

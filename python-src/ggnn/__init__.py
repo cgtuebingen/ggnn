@@ -3,4 +3,4 @@
 __version__ = '0.9.0'
 
 # import C++ module
-from .GGNN import *
+from .ggnn import *

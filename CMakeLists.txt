@@ -1,6 +1,9 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.25.2 FATAL_ERROR)
 
-project (GGNN LANGUAGES CXX CUDA)
+project (GGNN
+  VERSION 0.9.1
+  LANGUAGES CXX CUDA
+)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CUDA_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
@@ -132,6 +135,10 @@ target_sources(GGNNBase PRIVATE
     "include/ggnn/base/gpu_instance.cuh"
     )
   target_sources(GGNNBase PUBLIC
+    FILE_SET public_headers
+    TYPE HEADERS
+    BASE_DIRS "include"
+    FILES
     "include/ggnn/base/def.h"
     "include/ggnn/base/fwd.h"
 
@@ -168,6 +175,10 @@ target_sources(GGNNConstruction PRIVATE
     "include/ggnn/cuda_utils/check.cuh"
     )
 target_sources(GGNNConstruction PUBLIC
+    FILE_SET public_headers
+    TYPE HEADERS
+    BASE_DIRS "include"
+    FILES
     "include/ggnn/construction/graph_construction.cuh"
     )
 add_library(GGNNQuery SHARED)
@@ -186,26 +197,40 @@ target_sources(GGNNQuery PRIVATE
     "include/ggnn/cuda_utils/check.cuh"
     )
 target_sources(GGNNQuery PUBLIC
+    FILE_SET public_headers
+    TYPE HEADERS
+    BASE_DIRS "include"
+    FILES
     "include/ggnn/query/query_kernels.cuh"
     )
 
 target_link_libraries(GGNNBase PRIVATE CUDA::curand glog::glog)
 target_link_libraries(GGNNConstruction PRIVATE CUDA::curand glog::glog)
 target_link_libraries(GGNNQuery PRIVATE glog::glog)
-target_include_directories(GGNNBase PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
-target_include_directories(GGNNConstruction PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
-target_include_directories(GGNNQuery PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_include_directories(GGNNBase PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
+target_include_directories(GGNNConstruction PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
+target_include_directories(GGNNQuery PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
+
+target_link_libraries(GGNNBase PRIVATE GGNNConstruction GGNNQuery)
+# look for libGGNNConstruction and libGGNNQuery in the same folder
+set_property(TARGET GGNNBase APPEND PROPERTY INSTALL_RPATH "$ORIGIN")
 
 if (nanobind_FOUND)
     message(STATUS "building nanobind module")
-    nanobind_add_module(GGNN NB_STATIC NOMINSIZE "src/ggnn/python/nanobind.cu")
-    target_link_libraries(GGNN PRIVATE GGNNBase GGNNConstruction GGNNQuery glog::glog)
-    nanobind_add_stub(GGNN_stub MODULE GGNN OUTPUT GGNN.pyi MARKER_FILE py.typed DEPENDS GGNN)
+    nanobind_add_module(ggnn NB_STATIC NOMINSIZE "src/ggnn/python/nanobind.cu")
+    target_link_libraries(ggnn PRIVATE GGNNBase GGNNConstruction GGNNQuery glog::glog)
+    nanobind_add_stub(ggnn_stub MODULE ggnn OUTPUT ggnn.pyi MARKER_FILE py.typed DEPENDS ggnn)
 
     if (PY_BUILD_CMAKE_MODULE_NAME)
         message(STATUS "configuring python module installation")
-        set_property(TARGET GGNN APPEND PROPERTY INSTALL_RPATH "$ORIGIN")
-        install(TARGETS GGNNBase GGNNConstruction GGNNQuery GGNN
+        set_property(TARGET ggnn APPEND PROPERTY INSTALL_RPATH "$ORIGIN")
+        install(TARGETS GGNNBase GGNNConstruction GGNNQuery ggnn
             EXCLUDE_FROM_ALL
             COMPONENT python_modules
             DESTINATION ${PY_BUILD_CMAKE_MODULE_NAME})
@@ -217,7 +242,7 @@ if (nanobind_FOUND)
                 COMPONENT python_modules
                 DESTINATION ${PY_BUILD_CMAKE_MODULE_NAME})
         endif()
-        install(FILES ${CMAKE_BINARY_DIR}/py.typed ${CMAKE_BINARY_DIR}/GGNN.pyi
+        install(FILES ${CMAKE_BINARY_DIR}/py.typed ${CMAKE_BINARY_DIR}/ggnn.pyi
             EXCLUDE_FROM_ALL
             COMPONENT python_modules
             DESTINATION ${PY_BUILD_CMAKE_MODULE_NAME})
@@ -235,11 +260,55 @@ if (NOT PY_BUILD_CMAKE_MODULE_NAME)
     foreach(filename ${files})
         get_filename_component(EXECUTABLE_NAME "${filename}" NAME_WLE)
         add_executable(${EXECUTABLE_NAME} ${filename})
-        target_link_libraries(${EXECUTABLE_NAME} PRIVATE GGNNBase GGNNConstruction GGNNQuery glog::glog gflags_nothreads_static)
+        target_link_libraries(${EXECUTABLE_NAME} PRIVATE GGNNBase glog::glog gflags_nothreads_static)
     endforeach()
 
     target_link_libraries(ggnn_main_gpu_data PRIVATE CUDA::curand)
   else()
     message(STATUS "gflags not found. Skipping example projects.")
   endif()
+
+  # Installation (enables find_package)
+  # Introduce variables:
+  # * CMAKE_INSTALL_LIBDIR
+  # * CMAKE_INSTALL_BINDIR
+  # * CMAKE_INSTALL_INCLUDEDIR
+  include(GNUInstallDirs)
+  # Include module with function 'write_basic_package_version_file'
+  include(CMakePackageConfigHelpers)
+
+  # directories where to store the generated files
+  set(config_install_dir "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}")
+  set(generated_dir "${CMAKE_CURRENT_BINARY_DIR}/generated")
+  # Configuration
+  set(version_config "${generated_dir}/${PROJECT_NAME}ConfigVersion.cmake")
+  set(project_config "${generated_dir}/${PROJECT_NAME}Config.cmake")
+  set(TARGETS_EXPORT_NAME "${PROJECT_NAME}Targets")
+  set(namespace "${PROJECT_NAME}::")
+
+  write_basic_package_version_file("${version_config}" COMPATIBILITY SameMajorVersion)
+  configure_package_config_file(
+    "cmake/Config.cmake.in"
+    "${project_config}"
+    INSTALL_DESTINATION "${config_install_dir}"
+  )
+
+  install(
+    TARGETS GGNNBase GGNNConstruction GGNNQuery
+    EXPORT "${TARGETS_EXPORT_NAME}"
+    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+    INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+    FILE_SET public_headers
+  )
+  install(
+    FILES "${project_config}" "${version_config}"
+    DESTINATION "${config_install_dir}"
+  )
+  install(
+    EXPORT "${TARGETS_EXPORT_NAME}"
+    NAMESPACE "${namespace}"
+    DESTINATION "${config_install_dir}"
+  )
 endif()
