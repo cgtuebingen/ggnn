@@ -46,9 +46,9 @@ Everything dataset-specific can be configured via the following command line par
     If left empty, the graph will be discarded when the program ends.
 
     If necessary (i.e., if GPU memory is insufficient to keep all shards loaded),
-    GGNN will swap out shards from GPUs to RAM and disk automatically in multi-shard settings.
+    GGNN will still swap out shards from GPUs to RAM and disk automatically in multi-shard settings.
 
-    In that case, GGNN graph shards will be stored in the current working directory.
+    In that case, when no directory is specified, GGNN graph shards will be stored in the current working directory.
 
 ``k_build`` (optional, default ``24``)
   Number of neighbors per point in the search graph (see :ref:`search graph parameters`).

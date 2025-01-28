@@ -16,6 +16,14 @@ For more detailed information see our [documentation](https://ggnn.readthedocs.i
 
 ## Installing the Python Module
 
+Simply clone or download the repository and use `pip` to install the GGNN python module:
+
+```bash
+git clone https://github.com/cgtuebingen/ggnn.git
+cd ggnn
+python -m pip install .
+```
+
 ### Prerequisites
 
 GGNN is implemented in C++20/CUDA.
@@ -24,19 +32,6 @@ and GCC/Clang C++ compilers version 10 or newer.
 
 To run GGNN, a CUDA-capable GPU is required.
 
-### Installing from PyPI
-
-We're currently setting this up and will update the readme once this is ready.
-
-### Manual Installation
-
-Simply clone or download the repository and use pip to install the GGNN python module:
-
-```bash
-git clone https://github.com/cgtuebingen/ggnn.git
-cd ggnn
-python -m pip install .
-```
 
 ## Compiling the C++/CUDA Code
 
@@ -57,9 +52,7 @@ make -j4
 - NVCC 12 or newer (CUDA Toolkit 12 or newer)
 - either GCC (>=10) or Clang (>=10)
   (e.g., `g++-10` `libstdc++-10-dev` or `clang-10` `libc++-10-dev` `libc++abi-10-dev` on Ubuntu)
-- `cmake` (>= 3.23)
-- [nanobind](https://github.com/wjakob/nanobind)
-  (`python -m pip install nanobind`)
+- `cmake` (>= 3.25.2)
 - [glog](https://github.com/google/glog)
   (`libgoogle-glog-dev` on Ubuntu)
 - [gflags](https://github.com/gflags/gflags)
@@ -67,22 +60,17 @@ make -j4
 
 The glog and gflags development libraries will be automatically fetched by CMake, if not installed.
 
-### Troubleshooting
+If you want to compile the Python module via CMake, you also have to install
 
-If your default C/C++ compilers are too old,
-you may need to manually specify a newer version before running `cmake`:
+- [nanobind](https://github.com/wjakob/nanobind)
+  (`python -m pip install nanobind`)
 
-```bash
-export CC=gcc-10
-export CXX=g++-10
-export CUDAHOSTCXX=g++-10
-```
-
-For installation details, please see the [documentation](https://ggnn.readthedocs.io/en/latest/install.html).
+For more details on installation and troubleshooting advice,
+please see the [documentation](https://ggnn.readthedocs.io/en/latest/install.html).
 
 ## Example Usage
 
-The GGNN python module can be used to perform GPU-accelerated approximate nearest-neighbor (ANN) queries using search graph or brute-force queries for determining the ground truth results.
+The GGNN Python module can be used to perform GPU-accelerated approximate nearest-neighbor (ANN) queries using search graph or brute-force queries for determining the ground truth results.
 
 * First, you need to setup a GGNN instance.
 * Then, set the base dataset.
