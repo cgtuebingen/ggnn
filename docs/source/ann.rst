@@ -47,6 +47,10 @@ Query Parameters
   A hard limit of search iterations to perform per query.
   Each iteration visits one point in the search graph.
   Typically, :math:`200-2000` iterations are approximate.
+  For :math:`R@1`/:math:`C@1`, using only :math:`200` iterations may be enough.
+  For :math:`C@10` and more, using :math:`400` iterations typically yields better results.
+  For difficult datasets, using :math:`1000` or :math:`2000` iterations might be necessary
+  to reach high recalls.
 
 .. note::
   If increasing ``tau_query`` and ``max_iterations`` does not yield sufficient accuracy,

@@ -41,11 +41,12 @@ DEFINE_string(gt, "", "Path to file with groundtruth vectors (ivecs).");
 DEFINE_string(graph_dir, "", "Directory to store and load ggnn graph files.");
 DEFINE_uint32(k_build, 24, "Number of neighbors for graph construction");
 DEFINE_double(tau_build, 0.5, "Search graph construction slack factor.");
-DEFINE_uint32(refinement_iterations, 2, "Number of refinement iterations");
-DEFINE_uint32(k_query, 10, "Number of neighbors to query for");
-DEFINE_string(measure, "euclidean", "distance measure (euclidean or cosine)");
-DEFINE_uint32(shard_size, 0, "Number of vectors per shard");
-DEFINE_string(gpu_ids, "0", "GPU id");
+DEFINE_uint32(refinement_iterations, 2, "Number of refinement iterations.");
+DEFINE_uint32(k_query, 10, "Number of neighbors to query for.");
+DEFINE_uint32(max_iterations, 200, "Maximum number of search iterations per query.");
+DEFINE_string(measure, "euclidean", "Distance measure. (euclidean or cosine)");
+DEFINE_uint32(shard_size, 0, "Number of vectors per shard.");
+DEFINE_string(gpu_ids, "0", "GPU ids, separated by spaces.");
 DEFINE_bool(grid_search, false, "Perform queries for a wide range of parameters.");
 
 size_t getTotalSystemMemory()
@@ -163,20 +164,12 @@ int main(int argc, char* argv[])
   Evaluator eval{base, query, gt, FLAGS_k_query, measure};
 
   // query
-  auto query_function = [&ggnn, &eval, &query, measure](const float tau_query) {
+  auto query_function = [&ggnn, &eval, &query, measure, max_iter=FLAGS_max_iterations](const float tau_query) {
     Results results;
     LOG(INFO) << "--";
-    LOG(INFO) << "Query with tau_query " << tau_query;
-    // faster for C@1 = 99%
-    LOG(INFO) << "fast query (good for C@1)";
-    results = ggnn.query(query, FLAGS_k_query, tau_query, 200, measure);
+    LOG(INFO) << "Query with tau_query " << tau_query << " max iterations " << max_iter;
+    results = ggnn.query(query, FLAGS_k_query, tau_query, max_iter, measure);
     LOG(INFO) << eval.evaluateResults(results.ids);
-    // better for C@10 > 99%
-    LOG(INFO) << "regular query (good for C@10)";
-    results = ggnn.query(query, FLAGS_k_query, tau_query, 400, measure);
-    LOG(INFO) << eval.evaluateResults(results.ids);
-    // expensive, can get to 99.99% C@10
-    // ggnn.queryLayer<KQuery, 2000, 2048, 256>();
   };
 
   if (FLAGS_grid_search) {
@@ -190,11 +183,10 @@ int main(int argc, char* argv[])
   else {  // by default, just execute a few queries
     LOG(INFO) << "--";
     LOG(INFO)
-        << "Querying for 90, 95, 99% R@1, 99% C@10 (if running on SIFT1M with default parameters):";
+        << "Querying for 90, 95, 99% R@1 (if running on SIFT1M with default parameters):";
     query_function(0.34f);
     query_function(0.41f);
     query_function(0.51f);
-    query_function(0.64f);
   }
 
   VLOG(1) << "done!";

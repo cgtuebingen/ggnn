@@ -62,6 +62,9 @@ Everything dataset-specific can be configured via the following command line par
 ``k_query`` (optional, default ``10``)
   Number of neighbors to search for (see :ref:`query parameters`).
 
+``max_iterations`` (optional, default ``200``)
+  Maximum number of query iterations per search (see :ref:`query parameters`).
+
 ``measure`` (optional, default ``euclidean``)
   Distance measure (``euclidean`` or ``cosine``) (see :ref:`distance measures`).
 
