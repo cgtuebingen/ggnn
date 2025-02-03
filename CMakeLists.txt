@@ -41,8 +41,9 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(glog gflags)
 
-find_package(glog REQUIRED)
+set(GFLAGS_USE_TARGET_NAMESPACE ON)
 find_package(gflags)
+find_package(glog REQUIRED)
 
 # optional (required for nanobind bindings)
 find_package(Python 3.8 COMPONENTS Interpreter Development.Module)
@@ -260,7 +261,7 @@ if (NOT PY_BUILD_CMAKE_MODULE_NAME)
     foreach(filename ${files})
         get_filename_component(EXECUTABLE_NAME "${filename}" NAME_WLE)
         add_executable(${EXECUTABLE_NAME} ${filename})
-        target_link_libraries(${EXECUTABLE_NAME} PRIVATE GGNNBase glog::glog gflags_nothreads_static)
+        target_link_libraries(${EXECUTABLE_NAME} PRIVATE GGNNBase glog::glog gflags::gflags)
     endforeach()
 
     target_link_libraries(ggnn_main_gpu_data PRIVATE CUDA::curand)
