@@ -53,6 +53,7 @@ namespace ggnn {
 struct GGNNConfig {
   std::filesystem::path graph_dir{};
   size_t cpu_memory_limit{-1UL};
+  size_t reserved_gpu_memory{0UL};
   std::vector<int> gpu_ids{};
   uint32_t N_shard{};
   bool return_results_on_gpu{};
@@ -78,6 +79,11 @@ struct GGNNImplBase : public GGNNConfig, public GGNN<KeyT, ValueT> {
   {
     cpu_memory_limit = memory_limit;
     VLOG(1) << "Set CPU memory limit to " << sizeInGB(cpu_memory_limit) << " GiB.";
+  }
+  void setReservedGPUMemory(const size_t reserved_memory) override
+  {
+    reserved_gpu_memory = reserved_memory;
+    VLOG(1) << "Set reserved GPU memory to " << sizeInGB(reserved_gpu_memory) << " GiB.";
   }
 
   void setGPUs(const std::span<const int>& gpu_ids) override
@@ -217,7 +223,7 @@ struct GGNNImpl : public GGNNImplBase<KeyT, ValueT> {
       build_threads.emplace_back([&]() -> void {
         const float build_time = gpu_instance.build(
             base, graph_dir, GraphParameters{gpu_instance.shard_config.N_shard, base.D, KBuild},
-            tau_build, refinement_iterations, measure);
+            tau_build, refinement_iterations, measure, this->reserved_gpu_memory);
         build_time_ms += build_time;
       });
     for (auto& build_thread : build_threads)
@@ -262,7 +268,8 @@ struct GGNNImpl : public GGNNImplBase<KeyT, ValueT> {
     for (auto& gpu_instance : gpu_instances)
       load_threads.emplace_back([&]() -> void {
         gpu_instance.load(base, graph_dir,
-                          GraphParameters{gpu_instance.shard_config.N_shard, base.D, KBuild});
+                          GraphParameters{gpu_instance.shard_config.N_shard, base.D, KBuild},
+                          this->reserved_gpu_memory);
       });
     for (auto& thread : load_threads)
       thread.join();
@@ -420,6 +427,12 @@ template <typename KeyT, typename ValueT>
 void GGNN<KeyT, ValueT>::setCPUMemoryLimit(const size_t memory_limit)
 {
   pimpl->setCPUMemoryLimit(memory_limit);
+}
+
+template <typename KeyT, typename ValueT>
+void GGNN<KeyT, ValueT>::setReservedGPUMemory(const size_t reserved_memory)
+{
+  pimpl->setReservedGPUMemory(reserved_memory);
 }
 
 template <typename KeyT, typename ValueT>

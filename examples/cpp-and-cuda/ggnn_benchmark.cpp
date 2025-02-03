@@ -122,10 +122,23 @@ int main(int argc, char* argv[])
   // initialize GGNN
   GGNN ggnn;
 
-  const size_t total_memory = getTotalSystemMemory();
-  // guess the available memory (assume 1/8 used elsewhere, subtract dataset)
-  const size_t available_memory = total_memory - total_memory / 8 - base.required_size_bytes();
-  ggnn.setCPUMemoryLimit(available_memory);
+  {
+    // limit CPU memory usage
+    const size_t total_memory = getTotalSystemMemory();
+    // guess the available memory (assume 1/8 used elsewhere, subtract dataset)
+    const size_t available_memory = total_memory - total_memory / 8 - base.required_size_bytes();
+    ggnn.setCPUMemoryLimit(available_memory);
+  }
+  {
+    // make sure to reserve enough GPU memory for running a query
+    const size_t query_size = query.required_size_bytes();
+    const size_t result_size = query.N*FLAGS_k_query*(sizeof(KeyT)+sizeof(ValueT));
+    // when using sharding, we need extra space for results per shard
+    const uint32_t num_shards_per_gpu = FLAGS_shard_size ? base.N/(FLAGS_shard_size*gpus.size()) : 1U;
+    // also, results need to be sorted, so we need that space twice (+ some memory for CUB)
+    const size_t shard_result_size = FLAGS_shard_size ? result_size*num_shards_per_gpu*2 : 0UL;
+    ggnn.setReservedGPUMemory(query_size+result_size+shard_result_size);
+  }
 
   ggnn.setWorkingDirectory(FLAGS_graph_dir);
   // reference the dataset to avoid a copy
@@ -182,11 +195,11 @@ int main(int argc, char* argv[])
   }
   else {  // by default, just execute a few queries
     LOG(INFO) << "--";
-    LOG(INFO)
-        << "Querying for 90, 95, 99% R@1 (if running on SIFT1M with default parameters):";
+    LOG(INFO) << "Querying for 90, 95, 99% R@1 (if running on SIFT1M with default parameters):";
     query_function(0.34f);
     query_function(0.41f);
     query_function(0.51f);
+    query_function(0.64f);
   }
 
   VLOG(1) << "done!";

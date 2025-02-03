@@ -72,6 +72,13 @@ class GGNN {
   virtual void setCPUMemoryLimit(const size_t memory_limit);
 
   /**
+   * Set the amount of GPU memory to reserve when allocating multiple shards.
+   * By default, GGNN uses all available GPU memory,
+   * which might make it impossible to still fit the query onto the GPU.
+   */
+  virtual void setReservedGPUMemory(const size_t reserved_memory);
+
+  /**
    * Set the GPUs to use (CUDA device indices).
    */
   virtual void setGPUs(const std::span<const int>& gpu_ids);

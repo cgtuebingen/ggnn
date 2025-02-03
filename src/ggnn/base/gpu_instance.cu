@@ -134,7 +134,7 @@ void GPUInstance<KeyT, ValueT, BaseT>::CPUGraphBuffer::download(const GPUGraphBu
 
 template <typename KeyT, typename ValueT, typename BaseT>
 void GPUInstance<KeyT, ValueT, BaseT>::allocateGraph(const GraphConfig& config,
-                                                     const bool reserve_construction_memory)
+                                                     const size_t reserved_gpu_memory)
 {
   gpu_ctx.activate();
 
@@ -155,24 +155,22 @@ void GPUInstance<KeyT, ValueT, BaseT>::allocateGraph(const GraphConfig& config,
   using GraphPartSizes = typename ggnn::Graph<KeyT, ValueT>::PartSizes;
   const size_t graph_size = GraphPartSizes{graph_config}.getGraphSize();
 
-  const uint32_t max_gpu_buffers = [this, graph_size, reserve_construction_memory]() -> uint32_t {
+  const uint32_t max_gpu_buffers = [this, graph_size, reserved_gpu_memory]() -> uint32_t {
     size_t free, total;
     CHECK_CUDA(cudaMemGetInfo(&free, &total));
 
-    if (reserve_construction_memory) {
-      using GraphBufferPartSizes = typename ggnn::GraphBuffer<KeyT, ValueT>::PartSizes;
-      const size_t construction_size = GraphBufferPartSizes{graph_config}.getBufferSize();
-      CHECK_GT(free, construction_size)
-          << "GPU memory does not suffice for the construction buffer";
-      VLOG(4) << "reserving " << sizeInGB(construction_size)
-              << " GB of device memory for graph construction.";
-      free -= construction_size;
+    if (reserved_gpu_memory) {
+      CHECK_GT(free, reserved_gpu_memory)
+          << "GPU memory does not suffice for the reserved amount.\n"
+          << "(Graph construction requires a minimum amount of reserved memory.)";
+      VLOG(4) << "Reserving " << sizeInGB(reserved_gpu_memory) << " GB of device memory.";
+      free -= reserved_gpu_memory;
     }
 
     const size_t size_per_shard = graph_config.getBaseSize(sizeof(BaseT)) + graph_size;
 
     const uint32_t max_shards = static_cast<uint32_t>(free / size_per_shard);
-    VLOG(4) << "remaining device memory (" << sizeInGB(free) << " GB) suffices for " << max_shards
+    VLOG(4) << "Remaining device memory (" << sizeInGB(free) << " GB) suffices for " << max_shards
             << " shards (" << sizeInGB(size_per_shard) << " GB each).";
 
     CHECK_GT(max_shards, 0)
@@ -503,10 +501,14 @@ float GPUInstance<KeyT, ValueT, BaseT>::build(const Dataset<BaseT>& base,
                                               const std::filesystem::path& graph_dir,
                                               const GraphConfig& config, const float tau_build,
                                               const uint32_t refinement_iterations,
-                                              const DistanceMeasure measure)
+                                              const DistanceMeasure measure,
+                                              const size_t reserved_gpu_memory)
 {
+  using GraphBufferPartSizes = typename ggnn::GraphBuffer<KeyT, ValueT>::PartSizes;
+
   h_base_ref = base.reference();
-  allocateGraph(config, true);
+  const size_t construction_size = GraphBufferPartSizes{graph_config}.getBufferSize();
+  allocateGraph(config, std::max(construction_size, reserved_gpu_memory));
   prefetchBase();
 
   using GraphConstruction = ggnn::GraphConstruction<KeyT, ValueT, BaseT>;
@@ -584,10 +586,11 @@ float GPUInstance<KeyT, ValueT, BaseT>::build(const Dataset<BaseT>& base,
 template <typename KeyT, typename ValueT, typename BaseT>
 void GPUInstance<KeyT, ValueT, BaseT>::load(const Dataset<BaseT>& base,
                                             const std::filesystem::path& graph_dir,
-                                            const GraphConfig& config)
+                                            const GraphConfig& config,
+                                            const size_t reserved_gpu_memory)
 {
   h_base_ref = base.reference();
-  allocateGraph(config, false);
+  allocateGraph(config, reserved_gpu_memory);
   prefetchBase();
 
   for (uint32_t i = 0; i < shard_config.num_shards; i++) {

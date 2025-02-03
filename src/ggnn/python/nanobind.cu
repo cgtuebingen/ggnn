@@ -195,6 +195,7 @@ without copying through CPU memory (e.g., torch tensors).
           "base"_a)
       .def("set_working_directory", &GGNN<KeyT, ValueT>::setWorkingDirectory, "dir"_a)
       .def("set_cpu_memory_limit", &GGNN<KeyT, ValueT>::setCPUMemoryLimit, "memory_limit"_a)
+      .def("set_reserved_gpu_memory", &GGNN<KeyT, ValueT>::setReservedGPUMemory, "reserved_memory"_a)
       .def(
           "set_gpus",
           [](GGNN<KeyT, ValueT>& ggnn, const std::vector<int>& gpu_ids) -> void {

@@ -90,9 +90,10 @@ class GPUInstance {
 
   float build(const Dataset<BaseT>& base, const std::filesystem::path& graph_dir,
               const GraphConfig& graph_config, const float tau_build,
-              const uint32_t refinement_iterations, const DistanceMeasure measure);
+              const uint32_t refinement_iterations, const DistanceMeasure measure,
+              const size_t reserved_gpu_memory);
   void load(const Dataset<BaseT>& base, const std::filesystem::path& graph_dir,
-            const GraphConfig& graph_config);
+            const GraphConfig& graph_config, const size_t reserved_gpu_memory);
   void store(const std::filesystem::path& graph_dir);
 
   [[nodiscard]] Results query(const Dataset<BaseT>& query, const std::filesystem::path& graph_dir,
@@ -157,7 +158,7 @@ class GPUInstance {
   bool process_shards_back_to_front{false};
 
   void allocateGraph(const GraphConfig& graph_config,
-                     const bool reserve_construction_memory = false);
+                     const size_t reserved_gpu_memory);
   void allocateCPUBuffers(const uint32_t num_cpu_buffers);
 
   /// Get the GPU buffer responsible for the given \c on_gpu_shard_id.
