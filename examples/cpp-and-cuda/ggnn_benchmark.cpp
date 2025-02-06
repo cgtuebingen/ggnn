@@ -75,8 +75,6 @@ int main(int argc, char* argv[])
       << "File for base vectors has to exist: " << FLAGS_base;
   CHECK(std::filesystem::exists(FLAGS_query))
       << "File for query vectors has to exist: " << FLAGS_query;
-  CHECK(std::filesystem::exists(FLAGS_gt))
-      << "File for groundtruth vectors has to exist: " << FLAGS_gt;
 
   CHECK_GE(FLAGS_tau_build, 0) << "tau_build has to be bigger or equal 0.";
   CHECK_GE(FLAGS_refinement_iterations, 0)
