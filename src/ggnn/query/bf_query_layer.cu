@@ -40,8 +40,6 @@ template <typename KeyT, typename ValueT, typename BaseT, uint32_t BLOCK_SIZE, b
 __device__ __forceinline__ void
 BruteForceQueryKernel<KeyT, ValueT, BaseT, BLOCK_SIZE, WRITE_DISTS>::operator()() const
 {
-  static constexpr uint32_t K_BLOCK = 32;
-
   using Distance = Distance<KeyT, ValueT, BaseT, BLOCK_DIM_X, DIST_ITEMS_PER_THREAD>;
   using KBestList = KBestList<KeyT, ValueT, BLOCK_DIM_X>;
 
@@ -59,13 +57,10 @@ BruteForceQueryKernel<KeyT, ValueT, BaseT, BLOCK_SIZE, WRITE_DISTS>::operator()(
   }
   __syncthreads();
 
-  for (uint32_t i = 0; i < KQuery; i += K_BLOCK) {
-    const uint32_t k = i + threadIdx.x;
-    if (k < KQuery) {
-      d_query_results[static_cast<size_t>(n) * KQuery + k] = best.s_ids[k];
-      if constexpr (WRITE_DISTS)
-        d_query_results_dists[static_cast<size_t>(n) * KQuery + k] = best.s_dists[k];
-    }
+  for (uint32_t k = threadIdx.x; k < KQuery; k += BLOCK_DIM_X) {
+    d_query_results[static_cast<size_t>(n) * KQuery + k] = best.s_ids[k];
+    if constexpr (WRITE_DISTS)
+      d_query_results_dists[static_cast<size_t>(n) * KQuery + k] = best.s_dists[k];
   }
 }
 
